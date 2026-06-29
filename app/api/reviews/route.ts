@@ -8,6 +8,7 @@ export async function GET() {
   const rows = await runSql(`
     SELECT id, anime_title, rating, review_text, updated_at
     FROM ${reviewsTable}
+    WHERE deleted_at IS NULL
     ORDER BY id
   `);
 
@@ -20,9 +21,9 @@ export async function POST(request: Request) {
   await runSql(
     `
       INSERT INTO ${reviewsTable}
-        (id, anime_title, rating, review_text, updated_at)
+        (id, anime_title, rating, review_text, updated_at, deleted_at)
       VALUES
-        (CAST(:id AS INT), :anime_title, CAST(:rating AS DOUBLE), :review_text, current_timestamp())
+        (CAST(:id AS INT), :anime_title, CAST(:rating AS DOUBLE), :review_text, current_timestamp(), NULL)
     `,
     [
       { name: "id", value: String(body.id), type: "INT" },
@@ -63,7 +64,8 @@ export async function DELETE(request: Request) {
 
   await runSql(
     `
-      DELETE FROM ${reviewsTable}
+      UPDATE ${reviewsTable}
+      SET deleted_at = current_timestamp()
       WHERE id = CAST(:id AS INT)
     `,
     [{ name: "id", value: String(body.id), type: "INT" }]
