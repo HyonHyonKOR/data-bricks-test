@@ -1,0 +1,5 @@
+env:
+  - name: WAREHOUSE_ID
+    valueFrom: "sql-warehouse"
+  - name: REVIEWS_TABLE
+    valueFrom: "table"
