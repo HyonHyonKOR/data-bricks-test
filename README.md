@@ -13,13 +13,12 @@ CREATE OR REPLACE TABLE demo.anime_reviews (
   anime_title STRING,
   rating DOUBLE,
   review_text STRING,
-  updated_at TIMESTAMP,
-  deleted_at TIMESTAMP
+  updated_at TIMESTAMP
 );
 
 INSERT INTO demo.anime_reviews VALUES
-  (1, '葬送のフリーレン', 4.5, '静かだけど深い作品', current_timestamp(), NULL),
-  (2, '呪術廻戦', 4.0, '戦闘シーンが強い', current_timestamp(), NULL);
+  (1, '葬送のフリーレン', 4.5, '静かだけど深い作品', current_timestamp()),
+  (2, '呪術廻戦', 4.0, '戦闘シーンが強い', current_timestamp());
 ```
 
 ## 2. Databricks App resources
