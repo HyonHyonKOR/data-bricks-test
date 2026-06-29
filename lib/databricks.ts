@@ -35,7 +35,13 @@ function requiredEnv(name: string) {
 }
 
 function databricksHost() {
-  return requiredEnv("DATABRICKS_HOST").replace(/\/$/, "");
+  const host = requiredEnv("DATABRICKS_HOST").replace(/\/$/, "");
+
+  if (host.startsWith("http://") || host.startsWith("https://")) {
+    return host;
+  }
+
+  return `https://${host}`;
 }
 
 async function getAccessToken() {
