@@ -6,29 +6,27 @@ Databricks Apps 上で Next.js を実行し、SQL Warehouse API 経由で
 ## 1. 先に Databricks SQL Editor でテーブルを作成
 
 ```sql
-CREATE SCHEMA IF NOT EXISTS demo;
+CREATE SCHEMA IF NOT EXISTS workspace.demo;
 
-CREATE OR REPLACE TABLE demo.anime_reviews (
-  id INT,
+CREATE OR REPLACE TABLE workspace.demo.anime_reviews (
+  id STRING,
   anime_title STRING,
   rating DOUBLE,
   review_text STRING,
   updated_at TIMESTAMP,
   deleted_at TIMESTAMP
-);
+)
+TBLPROPERTIES (delta.enableChangeDataFeed = true);
 
-INSERT INTO demo.anime_reviews VALUES
-  (1, '葬送のフリーレン', 4.5, '静かだけど深い作品', current_timestamp(), NULL),
-  (2, '呪術廻戦', 4.0, '戦闘シーンが強い', current_timestamp(), NULL);
+INSERT INTO workspace.demo.anime_reviews VALUES
+  ('anime-review-001', '葬送のフリーレン', 4.5, '静かだけど深い作品', current_timestamp(), NULL),
+  ('anime-review-002', '呪術廻戦', 4.0, '戦闘シーンが強い', current_timestamp(), NULL);
 ```
 
-既存テーブルに `deleted_at` だけ追加する場合:
+この検証アプリでは、IDは画面から入力せず、Next.js API Route側でUUIDを自動生成します。
+既存テーブルが `id INT` の場合は、上記SQLでテーブルを作り直してからAppを再Deployしてください。
 
-```sql
-ALTER TABLE demo.anime_reviews ADD COLUMN deleted_at TIMESTAMP;
-```
-
-Change Data Feed を有効化する場合:
+既存テーブルを作り直さずに Change Data Feed だけ有効化する場合:
 
 ```sql
 ALTER TABLE workspace.demo.anime_reviews

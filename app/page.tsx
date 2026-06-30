@@ -18,7 +18,6 @@ type ChangeRecord = Review & {
 };
 
 const emptyForm = {
-  id: "",
   anime_title: "",
   rating: "",
   review_text: ""
@@ -68,7 +67,7 @@ export default function Page() {
         body: JSON.stringify(form)
       });
       setForm(emptyForm);
-      setMessage("Review added.");
+      setMessage("Review added with an automatically generated ID.");
       await loadReviews();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to add review.");
@@ -157,19 +156,11 @@ export default function Page() {
         <h2>Create review</h2>
         <div className="form-grid">
           <label>
-            ID
-            <input
-              value={form.id}
-              onChange={(event) => setForm({ ...form, id: event.target.value })}
-              placeholder="3"
-            />
-          </label>
-          <label>
             Anime title
             <input
               value={form.anime_title}
               onChange={(event) => setForm({ ...form, anime_title: event.target.value })}
-              placeholder="SPY×FAMILY"
+              placeholder="SPY x FAMILY"
             />
           </label>
           <label>
@@ -208,7 +199,7 @@ export default function Page() {
         <div className="review-list">
           {reviews.map((review) => (
             <article className="review-card" key={review.id}>
-              <input className="id-input" value={review.id} readOnly />
+              <input className="id-input" title={review.id} value={review.id} readOnly />
               <input
                 value={review.anime_title}
                 onChange={(event) =>
