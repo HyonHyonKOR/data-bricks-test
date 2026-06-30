@@ -26,6 +26,9 @@ type SyncResult = {
   ok: boolean;
   synced: boolean;
   changeCount: number;
+  lastSyncedVersion: number | null;
+  startVersion: number;
+  latestSourceVersion: number | null;
   maxCommitVersion: number | null;
   rdsRows: RdsReview[];
 };
@@ -162,29 +165,19 @@ export default function Page() {
   }
 
   async function syncChanges() {
-    const trimmedVersion = startVersion.trim();
-    const version = Number(trimmedVersion);
-
-    if (!trimmedVersion || !Number.isInteger(version) || version < 0) {
-      setMessage("Start commit version must be a non-negative integer.");
-      return;
-    }
-
     setLoading(true);
     setMessage("");
 
     try {
       const data = await request<SyncResult>("/api/reviews/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ version })
+        method: "POST"
       });
 
       setRdsRows(data.rdsRows);
       setMessage(
         data.synced
-          ? `Synced ${data.changeCount} change records. sync_state = ${data.maxCommitVersion}.`
-          : "No change records to sync."
+          ? `Synced ${data.changeCount} change records from version ${data.startVersion}. sync_state = ${data.maxCommitVersion}.`
+          : `No change records to sync. sync_state = ${data.lastSyncedVersion ?? "none"}, latest = ${data.latestSourceVersion ?? "unknown"}.`
       );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to sync CDF changes.");
@@ -302,7 +295,7 @@ export default function Page() {
           <div>
             <h2>Change Data Feed</h2>
             <p className="muted">
-              Start commit versionを入力して、指定version以降の変更履歴を取得します。
+              Load changesは入力versionを使います。Syncはsync_stateから自動計算します。
             </p>
           </div>
           <button disabled={loading} onClick={loadChanges}>

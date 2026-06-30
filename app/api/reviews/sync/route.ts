@@ -12,14 +12,38 @@ function tableNameLiteral(value: string) {
   return value.replace(/'/g, "''");
 }
 
-function versionFromBody(value: unknown) {
-  const version = Number(value);
+function finiteNumber(value: unknown) {
+  const numberValue = Number(value);
 
-  if (!Number.isInteger(version) || version < 0) {
+  if (!Number.isFinite(numberValue)) {
     return null;
   }
 
-  return version;
+  return numberValue;
+}
+
+async function loadLatestSourceVersion() {
+  const historyRows = await runSql(`DESCRIBE HISTORY ${reviewsTable}`);
+  const versions = historyRows
+    .map((row) => finiteNumber(row.version))
+    .filter((version) => version !== null);
+
+  if (versions.length === 0) {
+    throw new Error("Source table history is empty.");
+  }
+
+  return Math.max(...versions);
+}
+
+async function loadLastSyncedVersion() {
+  const rows = await runSql(`
+    SELECT last_commit_version
+    FROM ${syncStateTable}
+    WHERE sync_name = '${syncName}'
+    LIMIT 1
+  `);
+
+  return finiteNumber(rows[0]?.last_commit_version);
 }
 
 async function loadRdsRows() {
@@ -43,24 +67,32 @@ export async function GET() {
   return Response.json({ rdsRows });
 }
 
-export async function POST(request: Request) {
-  const body = await request.json();
-  const version = versionFromBody(body.version);
-
-  if (version === null) {
-    return Response.json(
-      { error: "version must be a non-negative integer." },
-      { status: 400 }
-    );
-  }
-
+export async function POST() {
+  const lastSyncedVersion = await loadLastSyncedVersion();
+  const latestSourceVersion = await loadLatestSourceVersion();
+  const startVersion = lastSyncedVersion === null ? 0 : lastSyncedVersion + 1;
   const sourceTable = tableNameLiteral(reviewsTable);
+
+  if (startVersion > latestSourceVersion) {
+    const rdsRows = await loadRdsRows();
+
+    return Response.json({
+      ok: true,
+      synced: false,
+      changeCount: 0,
+      lastSyncedVersion,
+      startVersion,
+      latestSourceVersion,
+      maxCommitVersion: null,
+      rdsRows
+    });
+  }
 
   const stats = await runSql(`
     SELECT
       COUNT(*) AS change_count,
       MAX(_commit_version) AS max_commit_version
-    FROM table_changes('${sourceTable}', ${version})
+    FROM table_changes('${sourceTable}', ${startVersion})
     WHERE _change_type IN ('insert', 'update_postimage')
   `);
 
@@ -74,6 +106,9 @@ export async function POST(request: Request) {
       ok: true,
       synced: false,
       changeCount: 0,
+      lastSyncedVersion,
+      startVersion,
+      latestSourceVersion,
       maxCommitVersion: null,
       rdsRows
     });
@@ -101,7 +136,7 @@ export async function POST(request: Request) {
             PARTITION BY id
             ORDER BY _commit_version DESC, _commit_timestamp DESC
           ) AS rn
-        FROM table_changes('${sourceTable}', ${version})
+        FROM table_changes('${sourceTable}', ${startVersion})
         WHERE _change_type IN ('insert', 'update_postimage')
       )
       WHERE rn = 1
@@ -156,6 +191,9 @@ export async function POST(request: Request) {
     ok: true,
     synced: true,
     changeCount,
+    lastSyncedVersion,
+    startVersion,
+    latestSourceVersion,
     maxCommitVersion,
     rdsRows
   });
