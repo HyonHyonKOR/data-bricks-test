@@ -67,7 +67,7 @@ export default function Page() {
         body: JSON.stringify(form)
       });
       setForm(emptyForm);
-      setMessage("Review added with an automatically generated ID.");
+      setMessage("Review added with an automatically generated numeric ID.");
       await loadReviews();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to add review.");

@@ -1,4 +1,3 @@
-import { randomUUID } from "crypto";
 import { runSql } from "@/lib/databricks";
 
 export const runtime = "nodejs";
@@ -18,17 +17,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const id = randomUUID();
 
   await runSql(
     `
       INSERT INTO ${reviewsTable}
-        (id, anime_title, rating, review_text, updated_at, deleted_at)
+        (anime_title, rating, review_text, updated_at, deleted_at)
       VALUES
-        (:id, :anime_title, CAST(:rating AS DOUBLE), :review_text, current_timestamp(), NULL)
+        (:anime_title, CAST(:rating AS DOUBLE), :review_text, current_timestamp(), NULL)
     `,
     [
-      { name: "id", value: id, type: "STRING" },
       { name: "anime_title", value: String(body.anime_title), type: "STRING" },
       { name: "rating", value: String(body.rating), type: "DOUBLE" },
       { name: "review_text", value: String(body.review_text), type: "STRING" }
@@ -48,7 +45,7 @@ export async function PATCH(request: Request) {
           rating = CAST(:rating AS DOUBLE),
           review_text = :review_text,
           updated_at = current_timestamp()
-      WHERE id = :id
+      WHERE id = CAST(:id AS BIGINT)
     `,
     [
       { name: "id", value: String(body.id), type: "STRING" },
@@ -68,7 +65,7 @@ export async function DELETE(request: Request) {
     `
       UPDATE ${reviewsTable}
       SET deleted_at = current_timestamp()
-      WHERE id = :id
+      WHERE id = CAST(:id AS BIGINT)
     `,
     [{ name: "id", value: String(body.id), type: "STRING" }]
   );
