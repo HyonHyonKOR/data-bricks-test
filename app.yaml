@@ -3,3 +3,7 @@ env:
     valueFrom: "sql-warehouse"
   - name: REVIEWS_TABLE
     valueFrom: "table"
+  - name: RDS_REVIEWS_TABLE
+    valueFrom: "table-2"
+  - name: SYNC_STATE_TABLE
+    valueFrom: "table-3"

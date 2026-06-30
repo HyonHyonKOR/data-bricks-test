@@ -17,6 +17,19 @@ type ChangeRecord = Review & {
   _commit_timestamp: string;
 };
 
+type RdsReview = Review & {
+  deleted_at: string | null;
+  synced_at: string;
+};
+
+type SyncResult = {
+  ok: boolean;
+  synced: boolean;
+  changeCount: number;
+  maxCommitVersion: number | null;
+  rdsRows: RdsReview[];
+};
+
 const emptyForm = {
   anime_title: "",
   rating: "",
@@ -28,6 +41,7 @@ export default function Page() {
   const [form, setForm] = useState(emptyForm);
   const [startVersion, setStartVersion] = useState("");
   const [changes, setChanges] = useState<ChangeRecord[]>([]);
+  const [rdsRows, setRdsRows] = useState<RdsReview[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -53,6 +67,15 @@ export default function Page() {
       setMessage(error instanceof Error ? error.message : "Failed to load reviews.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadRdsRows() {
+    try {
+      const data = await request<{ rdsRows: RdsReview[] }>("/api/reviews/sync");
+      setRdsRows(data.rdsRows);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to load RDS mock rows.");
     }
   }
 
@@ -138,8 +161,41 @@ export default function Page() {
     }
   }
 
+  async function syncChanges() {
+    const trimmedVersion = startVersion.trim();
+    const version = Number(trimmedVersion);
+
+    if (!trimmedVersion || !Number.isInteger(version) || version < 0) {
+      setMessage("Start commit version must be a non-negative integer.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const data = await request<SyncResult>("/api/reviews/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ version })
+      });
+
+      setRdsRows(data.rdsRows);
+      setMessage(
+        data.synced
+          ? `Synced ${data.changeCount} change records. sync_state = ${data.maxCommitVersion}.`
+          : "No change records to sync."
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to sync CDF changes.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadReviews();
+    loadRdsRows();
   }, []);
 
   return (
@@ -252,6 +308,12 @@ export default function Page() {
           <button disabled={loading} onClick={loadChanges}>
             Load changes
           </button>
+          <button disabled={loading} onClick={syncChanges}>
+            Sync to RDS Mock
+          </button>
+          <button disabled={loading} onClick={loadRdsRows}>
+            Reload RDS Mock
+          </button>
         </div>
 
         <div className="version-row">
@@ -277,6 +339,19 @@ export default function Page() {
                 ID {change.id} / rating {change.rating} / committed {change._commit_timestamp}
               </p>
               <p className="muted">{change.review_text}</p>
+            </article>
+          ))}
+        </div>
+
+        <h3 className="subheading">RDS Mock Table</h3>
+        <div className="rds-list">
+          {rdsRows.map((row) => (
+            <article className="rds-card" key={row.id}>
+              <strong>ID {row.id}</strong>
+              <span>{row.anime_title}</span>
+              <span>rating {row.rating}</span>
+              <span>{row.deleted_at ? "deleted" : "active"}</span>
+              <span className="muted">synced {row.synced_at}</span>
             </article>
           ))}
         </div>
