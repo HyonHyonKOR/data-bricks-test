@@ -10,6 +10,13 @@ type Review = {
   updated_at: string;
 };
 
+type ChangeRecord = Review & {
+  deleted_at: string | null;
+  _change_type: string;
+  _commit_version: string;
+  _commit_timestamp: string;
+};
+
 const emptyForm = {
   id: "",
   anime_title: "",
@@ -20,6 +27,8 @@ const emptyForm = {
 export default function Page() {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [form, setForm] = useState(emptyForm);
+  const [startVersion, setStartVersion] = useState("");
+  const [changes, setChanges] = useState<ChangeRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -101,6 +110,30 @@ export default function Page() {
       await loadReviews();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Failed to delete review.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function loadChanges() {
+    const trimmedVersion = startVersion.trim();
+    const version = Number(trimmedVersion);
+
+    if (!trimmedVersion || !Number.isInteger(version) || version < 0) {
+      setMessage("Start commit version must be a non-negative integer.");
+      return;
+    }
+
+    setLoading(true);
+    setMessage("");
+
+    try {
+      const params = new URLSearchParams({ version: String(version) });
+      const data = await request<ChangeRecord[]>(`/api/reviews/changes?${params}`);
+      setChanges(data);
+      setMessage(`Loaded ${data.length} change records from version ${version}.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to load CDF changes.");
     } finally {
       setLoading(false);
     }
@@ -212,6 +245,47 @@ export default function Page() {
               <button className="danger" disabled={loading} onClick={() => deleteReview(review.id)}>
                 Delete
               </button>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="panel">
+        <div className="section-header">
+          <div>
+            <h2>Change Data Feed</h2>
+            <p className="muted">
+              Start commit versionを入力して、指定version以降の変更履歴を取得します。
+            </p>
+          </div>
+          <button disabled={loading} onClick={loadChanges}>
+            Load changes
+          </button>
+        </div>
+
+        <div className="version-row">
+          <label>
+            Start commit version
+            <input
+              value={startVersion}
+              onChange={(event) => setStartVersion(event.target.value)}
+              placeholder="10"
+            />
+          </label>
+        </div>
+
+        <div className="change-list">
+          {changes.map((change, index) => (
+            <article className="change-card" key={`${change._commit_version}-${change.id}-${index}`}>
+              <div>
+                <span className="badge">{change._change_type}</span>
+                <strong>version {change._commit_version}</strong>
+              </div>
+              <p>{change.anime_title}</p>
+              <p className="muted">
+                ID {change.id} / rating {change.rating} / committed {change._commit_timestamp}
+              </p>
+              <p className="muted">{change.review_text}</p>
             </article>
           ))}
         </div>

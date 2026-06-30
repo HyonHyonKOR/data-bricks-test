@@ -28,6 +28,19 @@ INSERT INTO demo.anime_reviews VALUES
 ALTER TABLE demo.anime_reviews ADD COLUMN deleted_at TIMESTAMP;
 ```
 
+Change Data Feed を有効化する場合:
+
+```sql
+ALTER TABLE workspace.demo.anime_reviews
+SET TBLPROPERTIES (delta.enableChangeDataFeed = true);
+```
+
+CDF有効化後のテーブル履歴を確認する場合:
+
+```sql
+DESCRIBE HISTORY workspace.demo.anime_reviews;
+```
+
 ## 2. Databricks App resources
 
 作成済み App の App resources で、以下の key 名になっていることを確認します。
